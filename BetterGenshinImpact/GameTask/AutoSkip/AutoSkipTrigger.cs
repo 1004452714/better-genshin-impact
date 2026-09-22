@@ -110,10 +110,19 @@ public partial class AutoSkipTrigger : ITaskTrigger
     /// 用于内部的其他方法调用
     /// </summary>
     /// <param name="config"></param>
-    public AutoSkipTrigger(AutoSkipConfig config)
+    public AutoSkipTrigger(AutoSkipConfig config) : this(config, false)
+    {
+    }
+
+    /// <summary>
+    /// 使用外部配置构造触发器。
+    /// </summary>
+    /// <param name="config">调用方持有的配置副本</param>
+    /// <param name="keepKeywordLists">是否仍从 User 目录加载屏蔽/优先关键词表。配置由用户已保存配置叠加而来时必须传 true，否则会丢失关键词表。</param>
+    public AutoSkipTrigger(AutoSkipConfig config, bool keepKeywordLists)
     {
         _config = config;
-        _isCustomConfiguration = true;
+        _isCustomConfiguration = !keepKeywordLists;
     }
 
     public void Init()
@@ -258,7 +267,7 @@ public partial class AutoSkipTrigger : ITaskTrigger
             // 自动剧情点击3s内判断
             if ((DateTime.Now - _prevPlayingTime).TotalMilliseconds < 3000)
             {
-                if (!TaskContext.Instance().Config.AutoSkipConfig.SubmitGoodsEnabled)
+                if (!_config.SubmitGoodsEnabled)
                 {
                     return;
                 }
@@ -278,7 +287,7 @@ public partial class AutoSkipTrigger : ITaskTrigger
         if (isPlaying)
         {
             _prevPlayingTime = DateTime.Now;
-            if (TaskContext.Instance().Config.AutoSkipConfig.QuicklySkipConversationsEnabled)
+            if (_config.QuicklySkipConversationsEnabled)
             {
                 if (_config.BeforeClickConfirmDelay > 0)
                 {

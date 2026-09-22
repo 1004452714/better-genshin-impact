@@ -11,6 +11,11 @@ namespace BetterGenshinImpact.GameTask.AutoSkip;
 public partial class AutoSkipConfig : ObservableObject
 {
     /// <summary>
+    /// 选项策略的全部合法取值，设置页下拉与脚本参数校验共用此来源
+    /// </summary>
+    public static readonly string[] ClickChatOptionValues = ["优先选择第一个选项", "随机选择选项", "优先选择最后一个选项", "不选择选项"];
+
+    /// <summary>
     /// 触发器是否启用
     /// 启用后：
     /// 1. 快速跳过对话

@@ -38,6 +38,14 @@ public class AutoEatTrigger : ITaskTrigger
         _config = TaskContext.Instance().Config.AutoEatConfig;
     }
 
+    /// <summary>
+    /// 使用调用方叠加好的配置副本构造触发器，避免脚本传参时改写用户已保存的配置。
+    /// </summary>
+    public AutoEatTrigger(AutoEatConfig config)
+    {
+        _config = config;
+    }
+
     public void Init()
     {
         IsEnabled = _config.Enabled;

@@ -1,5 +1,6 @@
 using BetterGenshinImpact.Core.Config;
 using BetterGenshinImpact.Core.Script.Dependence.Model;
+using BetterGenshinImpact.Core.Script.Dependence.Model.TimerConfig;
 using BetterGenshinImpact.GameTask;
 using BetterGenshinImpact.GameTask.AutoBoss;
 using BetterGenshinImpact.GameTask.AutoDomain;
@@ -95,6 +96,91 @@ public class Dispatcher
         if (!TaskTriggerDispatcher.Instance().AddTrigger(realtimeTimer.Name, realtimeTimer.Config))
         {
             throw new ArgumentException($"添加实时任务失败: {realtimeTimer.Name}", nameof(realtimeTimer.Name));
+        }
+    }
+
+    /// <summary>
+    /// 添加自动拾取实时触发任务。
+    /// </summary>
+    /// <param name="config">
+    /// 对象字面量，可用参数：forceInteraction。未给出的参数沿用设置页已保存的配置；
+    /// 出现未知参数名或类型错误时立即抛出异常，不会静默忽略。
+    /// </param>
+    public void AddAutoPickTimer(object? config = null)
+    {
+        AddRealtimeTrigger(RealtimeTriggerParamBinder.Bind(new AutoPickTriggerParam(), config));
+    }
+
+    /// <summary>
+    /// 添加自动剧情实时触发任务。
+    /// </summary>
+    /// <param name="config">
+    /// 对象字面量，可用参数见 AutoSkipTriggerParam.AcceptedKeys。未给出的参数沿用设置页已保存的配置；
+    /// 出现未知参数名、类型错误或取值越界时立即抛出异常。邀约分支名写错时只记录告警并回退默认选择逻辑。
+    /// </param>
+    public void AddAutoSkipTimer(object? config = null)
+    {
+        AddRealtimeTrigger(RealtimeTriggerParamBinder.Bind(new AutoSkipTriggerParam(), config));
+    }
+
+    /// <summary>
+    /// 添加自动吃药实时触发任务。
+    /// </summary>
+    /// <param name="config">对象字面量，可用参数：checkInterval、eatInterval。未给出的参数沿用设置页已保存的配置。</param>
+    public void AddAutoEatTimer(object? config = null)
+    {
+        AddRealtimeTrigger(RealtimeTriggerParamBinder.Bind(new AutoEatTriggerParam(), config));
+    }
+
+    /// <summary>
+    /// 添加类型化实时触发任务。与 AddTimer 不同：不清理已有任务，且任何参数错误都会抛到调用方。
+    /// </summary>
+    /// <exception cref="ArgumentException">参数类型不受支持</exception>
+    public void AddRealtimeTrigger(IRealtimeTriggerParam param)
+    {
+        ArgumentNullException.ThrowIfNull(param);
+        TaskTriggerDispatcher.Instance().AddTrigger(param);
+    }
+
+    /// <summary>
+    /// 移除自动拾取实时触发任务
+    /// </summary>
+    public void RemoveAutoPickTimer()
+    {
+        RemoveRealtimeTrigger("AutoPick");
+    }
+
+    /// <summary>
+    /// 移除自动剧情实时触发任务
+    /// </summary>
+    public void RemoveAutoSkipTimer()
+    {
+        RemoveRealtimeTrigger("AutoSkip");
+    }
+
+    /// <summary>
+    /// 移除自动吃药实时触发任务
+    /// </summary>
+    public void RemoveAutoEatTimer()
+    {
+        RemoveRealtimeTrigger("AutoEat");
+    }
+
+    /// <summary>
+    /// 移除单个实时触发任务。移除不存在的任务只记录告警，不抛异常。
+    /// </summary>
+    /// <param name="name">AutoPick、AutoSkip 或 AutoEat</param>
+    /// <exception cref="ArgumentException">名称不受支持</exception>
+    public void RemoveRealtimeTrigger(string name)
+    {
+        if (name is not ("AutoPick" or "AutoSkip" or "AutoEat"))
+        {
+            throw new ArgumentException($"未知的实时任务名称: {name}，可选：AutoPick、AutoSkip、AutoEat", nameof(name));
+        }
+
+        if (!TaskTriggerDispatcher.Instance().RemoveTrigger(name))
+        {
+            _logger.LogInformation("实时任务 {Name} 当前未被添加，无需移除", name);
         }
     }
 

@@ -17,8 +17,10 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using BetterGenshinImpact.GameTask.AutoSkip;
+using BetterGenshinImpact.GameTask.AutoSkip.Assets;
 using BetterGenshinImpact.GameTask.MapMask;
 using BetterGenshinImpact.GameTask.SkillCd;
+using Microsoft.Extensions.Logging;
 using System;
 
 namespace BetterGenshinImpact.GameTask;
@@ -106,6 +108,58 @@ internal class GameTaskManager
         }
         TriggerDictionary[triggerName] = trigger;
         return true;
+    }
+
+    /// <summary>
+    /// 通过类型化参数添加触发器。
+    /// <para>参数中为 null 的字段沿用用户已保存的配置，叠加结果写入配置副本，不会改写 TaskContext 中的配置实例。</para>
+    /// <para>注意：调用方随后重建触发器列表时会强制启用全部触发器，因此参数中不提供 Enabled。</para>
+    /// </summary>
+    /// <exception cref="ArgumentException">参数类型不受支持</exception>
+    public static void AddTrigger(IRealtimeTriggerParam param)
+    {
+        TriggerDictionary ??= new ConcurrentDictionary<string, ITaskTrigger>();
+
+        ITaskTrigger trigger = param switch
+        {
+            AutoPickTriggerParam pick => new AutoPick.AutoPickTrigger(RealtimeTriggerConfigMerger.Merge(pick)),
+            AutoSkipTriggerParam skip => new AutoSkip.AutoSkipTrigger(
+                RealtimeTriggerConfigMerger.Merge(TaskContext.Instance().Config.AutoSkipConfig, skip,
+                    HangoutBranchesOf(skip), OnHangoutBranchFallback), keepKeywordLists: true),
+            AutoEatTriggerParam eat => new AutoEat.AutoEatTrigger(
+                RealtimeTriggerConfigMerger.Merge(TaskContext.Instance().Config.AutoEatConfig, eat)),
+            _ => throw new ArgumentException($"不支持的实时任务参数类型: {param.GetType().Name}", nameof(param))
+        };
+
+        TriggerDictionary[param.TriggerName] = trigger;
+    }
+
+    /// <summary>
+    /// 移除指定名称的触发器，返回被移除的实例，便于调用方先做关闭清理。
+    /// </summary>
+    public static ITaskTrigger? RemoveTrigger(string name)
+    {
+        if (TriggerDictionary is not null && TriggerDictionary.TryRemove(name, out var removed))
+        {
+            return removed;
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// 仅在脚本显式指定了邀约分支时才读取 hangout.json，避免无谓的文件 IO。
+    /// </summary>
+    private static IReadOnlyCollection<string>? HangoutBranchesOf(AutoSkipTriggerParam param)
+    {
+        return string.IsNullOrEmpty(param.AutoHangoutEndChoose)
+            ? null
+            : HangoutConfig.Instance.HangoutOptions.Keys;
+    }
+
+    private static void OnHangoutBranchFallback(string branch)
+    {
+        App.GetLogger<GameTaskManager>().LogWarning("邀约分支名 '{Branch}' 不存在，已回退默认选择逻辑", branch);
     }
 
     public static void RefreshTriggerConfigs()

@@ -1,4 +1,5 @@
 using BetterGenshinImpact.Core.Config;
+using BetterGenshinImpact.Core.Script.Dependence.Model.TimerConfig;
 using BetterGenshinImpact.GameTask.Common;
 using BetterGenshinImpact.Helpers;
 using BetterGenshinImpact.View;
@@ -123,6 +124,52 @@ namespace BetterGenshinImpact.GameTask
                 }
 
                 return false;
+            }
+        }
+
+        /// <summary>
+        /// 通过类型化参数添加实时触发任务。
+        /// <para>参数中未指定的字段沿用用户已保存的配置；不会清理已有触发器，需要清空请调用 <see cref="ClearTriggers"/>。</para>
+        /// <para>与既有 AddTrigger 一致，添加后会以"全部启用"重建触发器列表。</para>
+        /// </summary>
+        /// <exception cref="ArgumentException">参数类型不受支持</exception>
+        public void AddTrigger(IRealtimeTriggerParam param)
+        {
+            lock (_triggerListLocker)
+            {
+                GameTaskManager.AddTrigger(param);
+                SetTriggers(GameTaskManager.ConvertToTriggerList(true));
+            }
+        }
+
+        /// <summary>
+        /// 移除单个实时触发任务，其余触发器的启用状态保持不变。
+        /// </summary>
+        /// <param name="name">触发器登记名，如 AutoPick、AutoSkip、AutoEat</param>
+        /// <returns>确实移除了一个触发器时返回 true</returns>
+        public bool RemoveTrigger(string name)
+        {
+            lock (_triggerListLocker)
+            {
+                // 先置为禁用，给触发器释放监听资源的机会（自动剧情的语音等待器在此回收）
+                if (GameTaskManager.TriggerDictionary?.GetValueOrDefault(name) is { } trigger)
+                {
+                    trigger.IsEnabled = false;
+                }
+
+                var removed = GameTaskManager.RemoveTrigger(name);
+                if (removed == null)
+                {
+                    return false;
+                }
+
+                if (_triggers != null)
+                {
+                    // 用新列表替换引用，避免与截图线程正在进行的枚举冲突
+                    SetTriggers([.. _triggers.Where(t => !ReferenceEquals(t, removed))]);
+                }
+
+                return true;
             }
         }
 
